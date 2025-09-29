@@ -1,17 +1,52 @@
-import { fetchBlogPosts } from "app/lib/api";
-import BlogCard from "../components/BlogCard";
+'use client';
 
-export default async function BlogPage() {
-  const posts = await fetchBlogPosts();
+import { useState, useEffect } from 'react';
+import { fetchBlogPosts } from 'app/lib/api';
+import { BlogPost } from 'app/types/database.types';
+import Link from 'next/link';
+
+export default function BlogPage() {
+  const [posts, setPosts] = useState<BlogPost[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadPosts = async () => {
+      try {
+        const data = await fetchBlogPosts();
+        setPosts(data);
+        setError(null);
+      } catch (err) {
+        const errorMessage = err instanceof Error ? `${err.message}${err.cause ? ` (Details: ${JSON.stringify(err.cause)})` : ''}` : 'Unknown error';
+        setError(errorMessage);
+        console.error('Failed to load blog posts:', err);
+      }
+    };
+    loadPosts();
+  }, []);
+
+  if (error) {
+    return <div>Error loading blog posts: {error}</div>;
+  }
 
   return (
-    <div className="container mx-auto p-4 space-y-8">
-      <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-8">Blog Posts</h1>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {posts.map((post) => (
-          <BlogCard key={post.id} post={post} />
-        ))}
-      </div>
+    <div>
+      <h1>Blog</h1>
+      {posts.length === 0 ? (
+        <p>No blog posts available.</p>
+      ) : (
+        <ul>
+          {posts.map((post) => (
+            <li key={post.slug}>
+              <Link href={`/blog/${post.slug}`}>
+                <h2>{post.title}</h2>
+                <p>{post.excerpt}</p>
+                <p>Category: {post.category}</p>
+                {post.published_at && <p>Published: {new Date(post.published_at).toLocaleDateString()}</p>}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

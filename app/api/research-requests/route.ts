@@ -6,7 +6,7 @@ import { verifyJwt } from 'app/lib/auth';
 export async function GET() {
   const { data, error } = await supabaseClient.from('research_requests').select('*');
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data as ResearchRequest[]);
+  return NextResponse.json(data || [] as ResearchRequest[]);
 }
 
 export async function POST(req: NextRequest) {

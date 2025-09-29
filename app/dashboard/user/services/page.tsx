@@ -80,7 +80,7 @@ export default function UserServices() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {services.map((service) => (
           <div key={service.id} className="relative">
-            <ServiceCard s={service} />
+            <ServiceCard s={service} showLink={false} />
             <button
               onClick={() => setSelectedService(service)}
               className="absolute top-2 right-2 px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"

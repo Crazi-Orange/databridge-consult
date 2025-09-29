@@ -1,8 +1,30 @@
+'use client';
+import { Product } from 'app/types/database.types';
 import { fetchProducts } from "app/lib/api";
 import ProductCard from "../components/ProductCard";
+import { useState, useEffect } from 'react';
 
-export default async function ShopPage() {
-  const products = await fetchProducts();
+export default function ShopPage() {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadProducts = async () => {
+      try {
+        const data = await fetchProducts();
+        setProducts(data);
+        setError(null);
+      } catch (err) {
+        setError((err as Error).message);
+        console.error('Failed to load products:', err);
+      }
+    };
+    loadProducts();
+  }, []);
+
+  if (error) {
+    return <div>Error loading products: {error}</div>;
+  }
   return (
     <div className="container mx-auto p-4 space-y-8">
       <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-8">Shop</h1>
@@ -14,3 +36,7 @@ export default async function ShopPage() {
     </div>
   );
 }
+
+
+
+

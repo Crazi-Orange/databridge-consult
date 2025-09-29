@@ -1,44 +1,118 @@
 import { User, Service, Product, Order, ResearchRequest, Message, BlogPost } from '../types/database.types';
 
+// Debug flag from environment variable
+const isDebug = process.env.NEXT_PUBLIC_DEBUG === 'true';
+
+// Base URL for API calls - works in both server and client components
+const getBaseUrl = () => {
+  if (typeof window !== 'undefined') {
+    // Client side - use relative URL
+    return '';
+  }
+  // Server side - use absolute URL
+  return process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+};
+
+// Helper function to log debug information safely
+const logDebug: (message: string, details?: unknown) => void = (message: string, details?: unknown) => {
+  if (isDebug) {
+    console.debug(`[API Debug] ${message}`, details || {});
+  }
+};
+
+
+// Helper function to handle non-JSON responses
+const handleNonJsonResponse = async (response: Response): Promise<string> => {
+  const contentType = response.headers.get('content-type') || '';
+  if (contentType.includes('text/html')) {
+    const text = await response.text();
+    return `Received HTML response: ${text.slice(0, 200)}...`; // Limit length for safety
+  }
+  return `Unexpected content type: ${contentType}`;
+};
+
+// Helper function for API calls
+async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  const baseUrl = getBaseUrl();
+  const url = `${baseUrl}${endpoint}`;
+  
+  logDebug(`Making request to ${url}`, { method: options.method || 'GET', headers: options.headers });
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+    });
+
+    const errorDetails = {
+      url,
+      status: response.status,
+      statusText: response.statusText,
+      headers: Object.fromEntries(response.headers.entries()),
+    };
+
+    if (!response.ok) {
+      const contentType = response.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        const errorMessage = await handleNonJsonResponse(response);
+        logDebug('Non-JSON response error', { ...errorDetails, body: errorMessage });
+        throw new Error(`API error at ${url}: ${response.status} ${response.statusText} - ${errorMessage}`);
+      }
+
+      const errorBody = await response.json().catch(() => ({}));
+      logDebug('API request failed', { ...errorDetails, body: errorBody });
+      throw new Error(`API error at ${url}: ${response.status} ${response.statusText} - ${errorBody.message || 'Unknown error'}`);
+    }
+
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      const errorMessage = await handleNonJsonResponse(response);
+      logDebug('Unexpected non-JSON response', { ...errorDetails, body: errorMessage });
+      throw new Error(`API error at ${url}: Expected JSON, got ${contentType} - ${errorMessage}`);
+    }
+
+    const data = await response.json();
+    logDebug(`Request to ${url} succeeded`, { status: response.status });
+    return data as T;
+  } catch (error) {
+    logDebug('Unexpected error in apiFetch', { url, error: (error as Error).message });
+    throw error;
+  }
+}
+
+// Services API
 export async function fetchServices(): Promise<Service[]> {
-  const response = await fetch('/api/services');
-  if (!response.ok) throw new Error('Failed to fetch services');
-  return response.json();
+  return apiFetch<Service[]>('/api/services');
 }
 
 export async function fetchService(id: string): Promise<Service> {
-  const response = await fetch(`/api/services/${id}`);
-  if (!response.ok) throw new Error('Failed to fetch service');
-  return response.json();
+  return apiFetch<Service>(`/api/services/${id}`);
 }
 
-// Similar for create, update, delete services (POST, PUT, DELETE)
-
 export async function createService(data: Partial<Service>): Promise<Service> {
-  const response = await fetch('/api/services', {
+  return apiFetch<Service>('/api/services', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  if (!response.ok) throw new Error('Failed to create service');
-  return response.json();
 }
 
 /**
  * Updates an existing service
  * @param id - The unique identifier of the service
  * @param data - Partial Service object containing the updated service details
- * @returns Promise containing the updated Service object
+ * @returns Promise containing the updated Service
+
+ object
  * @throws Error if the service update fails
  */
 export async function updateService(id: string, data: Partial<Service>): Promise<Service> {
-  const response = await fetch(`/api/services/${id}`, {
+  return apiFetch<Service>(`/api/services/${id}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  if (!response.ok) throw new Error('Failed to update service');
-  return response.json();
 }
 
 /**
@@ -48,51 +122,37 @@ export async function updateService(id: string, data: Partial<Service>): Promise
  * @throws Error if the service deletion fails
  */
 export async function deleteService(id: string): Promise<void> {
-  const response = await fetch(`/api/services/${id}`, {
-    method: 'DELETE',
-  });
-  if (!response.ok) throw new Error('Failed to delete service');
+  return apiFetch<void>(`/api/services/${id}`, { method: 'DELETE' });
 }
 
-// Products API, orders, research_requests, messages, users, blog
-
+// Products API
 export async function fetchProducts(): Promise<Product[]> {
-  const response = await fetch('/api/products');
-  if (!response.ok) throw new Error('Failed to fetch products');
-  return response.json();
+  return apiFetch<Product[]>('/api/products');
 }
 
 export async function fetchProduct(id: string): Promise<Product> {
-  const response = await fetch(`/api/products/${id}`);
-  if (!response.ok) throw new Error('Failed to fetch product');
-  return response.json();
+  return apiFetch<Product>(`/api/products/${id}`);
 }
 
 export async function createProduct(data: Partial<Product>): Promise<Product> {
-  const res = await fetch('/api/products', {
+  return apiFetch<Product>('/api/products', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error('Failed to create product');
-  return res.json();
 }
 
 /**
  * Updates an existing product
- * @param id - The unique identifier of the product
+ * @param personally - The unique identifier of the product
  * @param data - Partial Product object containing the updated product details
  * @returns Promise containing the updated Product object
  * @throws Error if the product update fails
  */
 export async function updateProduct(id: string, data: Partial<Product>): Promise<Product> {
-  const res = await fetch(`/api/products/${id}`, {
+  return apiFetch<Product>(`/api/products/${id}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error('Failed to update product');
-  return res.json();
 }
 
 /**
@@ -102,32 +162,23 @@ export async function updateProduct(id: string, data: Partial<Product>): Promise
  * @throws Error if the product deletion fails
  */
 export async function deleteProduct(id: string): Promise<void> {
-  const res = await fetch(`/api/products/${id}`, {
-    method: 'DELETE',
-  });
-  if (!res.ok) throw new Error('Failed to delete product');
+  return apiFetch<void>(`/api/products/${id}`, { method: 'DELETE' });
 }
 
+// Orders API
 export async function fetchOrders(): Promise<Order[]> {
-  const res = await fetch('/api/orders');
-  if (!res.ok) throw new Error('Failed to fetch orders');
-  return res.json();
+  return apiFetch<Order[]>('/api/orders');
 }
 
 export async function fetchOrder(id: string): Promise<Order> {
-  const res = await fetch(`/api/orders/${id}`);
-  if (!res.ok) throw new Error('Failed to fetch order');
-  return res.json();
+  return apiFetch<Order>(`/api/orders/${id}`);
 }
 
 export async function createOrder(data: Partial<Order>): Promise<Order> {
-  const res = await fetch('/api/orders', {
+  return apiFetch<Order>('/api/orders', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error('Failed to create order');
-  return res.json();
 }
 
 /**
@@ -138,13 +189,10 @@ export async function createOrder(data: Partial<Order>): Promise<Order> {
  * @throws Error if the order update fails
  */
 export async function updateOrder(id: string, data: Partial<Order>): Promise<Order> {
-  const res = await fetch(`/api/orders/${id}`, {
+  return apiFetch<Order>(`/api/orders/${id}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error('Failed to update order');
-  return res.json();
 }
 
 /**
@@ -154,32 +202,23 @@ export async function updateOrder(id: string, data: Partial<Order>): Promise<Ord
  * @throws Error if the order deletion fails
  */
 export async function deleteOrder(id: string): Promise<void> {
-  const res = await fetch(`/api/orders/${id}`, {
-    method: 'DELETE',
-  });
-  if (!res.ok) throw new Error('Failed to delete order');
+  return apiFetch<void>(`/api/orders/${id}`, { method: 'DELETE' });
 }
 
+// Research Requests API
 export async function fetchResearchRequests(): Promise<ResearchRequest[]> {
-  const res = await fetch('/api/research-requests');
-  if (!res.ok) throw new Error('Failed to fetch research requests');
-  return res.json();
+  return apiFetch<ResearchRequest[]>('/api/research-requests');
 }
 
 export async function fetchResearchRequest(id: string): Promise<ResearchRequest> {
-  const res = await fetch(`/api/research-requests/${id}`);
-  if (!res.ok) throw new Error('Failed to fetch research request');
-  return res.json();
+  return apiFetch<ResearchRequest>(`/api/research-requests/${id}`);
 }
 
 export async function createResearchRequest(data: Partial<ResearchRequest>): Promise<ResearchRequest> {
-  const res = await fetch('/api/research-requests', {
+  return apiFetch<ResearchRequest>('/api/research-requests', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error('Failed to create research request');
-  return res.json();
 }
 
 /**
@@ -190,13 +229,10 @@ export async function createResearchRequest(data: Partial<ResearchRequest>): Pro
  * @throws Error if the research request update fails
  */
 export async function updateResearchRequest(id: string, data: Partial<ResearchRequest>): Promise<ResearchRequest> {
-  const res = await fetch(`/api/research-requests/${id}`, {
+  return apiFetch<ResearchRequest>(`/api/research-requests/${id}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error('Failed to update research request');
-  return res.json();
 }
 
 /**
@@ -206,32 +242,23 @@ export async function updateResearchRequest(id: string, data: Partial<ResearchRe
  * @throws Error if the research request deletion fails
  */
 export async function deleteResearchRequest(id: string): Promise<void> {
-  const res = await fetch(`/api/research-requests/${id}`, {
-    method: 'DELETE',
-  });
-  if (!res.ok) throw new Error('Failed to delete research request');
+  return apiFetch<void>(`/api/research-requests/${id}`, { method: 'DELETE' });
 }
 
+// Messages API
 export async function fetchMessages(): Promise<Message[]> {
-  const response = await fetch('/api/messages');
-  if (!response.ok) throw new Error('Failed to fetch messages');
-  return response.json();
+  return apiFetch<Message[]>('/api/messages');
 }
 
 export async function fetchMessage(id: string): Promise<Message> {
-  const res = await fetch(`/api/messages/${id}`);
-  if (!res.ok) throw new Error('Failed to fetch message');
-  return res.json();
+  return apiFetch<Message>(`/api/messages/${id}`);
 }
 
 export async function createMessage(data: Partial<Message>): Promise<Message> {
-  const res = await fetch('/api/messages', {
+  return apiFetch<Message>('/api/messages', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error('Failed to create message');
-  return res.json();
 }
 
 /**
@@ -242,13 +269,10 @@ export async function createMessage(data: Partial<Message>): Promise<Message> {
  * @throws Error if the message update fails
  */
 export async function updateMessage(id: string, data: Partial<Message>): Promise<Message> {
-  const res = await fetch(`/api/messages/${id}`, {
+  return apiFetch<Message>(`/api/messages/${id}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error('Failed to update message');
-  return res.json();
 }
 
 /**
@@ -258,32 +282,23 @@ export async function updateMessage(id: string, data: Partial<Message>): Promise
  * @throws Error if the message deletion fails
  */
 export async function deleteMessage(id: string): Promise<void> {
-  const res = await fetch(`/api/messages/${id}`, {
-    method: 'DELETE',
-  });
-  if (!res.ok) throw new Error('Failed to delete message');
+  return apiFetch<void>(`/api/messages/${id}`, { method: 'DELETE' });
 }
 
+// Users API
 export async function fetchUsers(): Promise<User[]> {
-  const response = await fetch('/api/users');
-  if (!response.ok) throw new Error('Failed to fetch users');
-  return response.json();
+  return apiFetch<User[]>('/api/users');
 }
 
 export async function fetchUser(id: string): Promise<User> {
-  const res = await fetch(`/api/users/${id}`);
-  if (!res.ok) throw new Error('Failed to fetch user');
-  return res.json();
+  return apiFetch<User>(`/api/users/${id}`);
 }
 
 export async function createUser(data: Partial<User>): Promise<User> {
-  const res = await fetch('/api/users', {
+  return apiFetch<User>('/api/users', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error('Failed to create user');
-  return res.json();
 }
 
 /**
@@ -294,13 +309,10 @@ export async function createUser(data: Partial<User>): Promise<User> {
  * @throws Error if the user update fails
  */
 export async function updateUser(id: string, data: Partial<User>): Promise<User> {
-  const res = await fetch(`/api/users/${id}`, {
+  return apiFetch<User>(`/api/users/${id}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error('Failed to update user');
-  return res.json();
 }
 
 /**
@@ -310,22 +322,16 @@ export async function updateUser(id: string, data: Partial<User>): Promise<User>
  * @throws Error if the user deletion fails
  */
 export async function deleteUser(id: string): Promise<void> {
-  const res = await fetch(`/api/users/${id}`, {
-    method: 'DELETE',
-  });
-  if (!res.ok) throw new Error('Failed to delete user');
+  return apiFetch<void>(`/api/users/${id}`, { method: 'DELETE' });
 }
 
+// Blog API
 export async function fetchBlogPosts(): Promise<BlogPost[]> {
-  const response = await fetch('/api/blog');
-  if (!response.ok) throw new Error('Failed to fetch blog posts');
-  return response.json();
+  return apiFetch<BlogPost[]>('/api/blog');
 }
 
 export async function fetchBlogPost(slug: string): Promise<BlogPost> {
-  const res = await fetch(`/api/blog/${slug}`);
-  if (!res.ok) throw new Error('Failed to fetch blog post');
-  return res.json();
+  return apiFetch<BlogPost>(`/api/blog/${slug}`);
 }
 
 /**
@@ -335,13 +341,10 @@ export async function fetchBlogPost(slug: string): Promise<BlogPost> {
  * @throws Error if the blog post creation fails
  */
 export async function createBlogPost(data: Partial<BlogPost>): Promise<BlogPost> {
-  const res = await fetch('/api/blog', {
+  return apiFetch<BlogPost>('/api/blog', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error('Failed to create blog post');
-  return res.json();
 }
 
 /**
@@ -352,13 +355,10 @@ export async function createBlogPost(data: Partial<BlogPost>): Promise<BlogPost>
  * @throws Error if the blog post update fails
  */
 export async function updateBlogPost(slug: string, data: Partial<BlogPost>): Promise<BlogPost> {
-  const res = await fetch(`/api/blog/${slug}`, {
+  return apiFetch<BlogPost>(`/api/blog/${slug}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error('Failed to update blog post');
-  return res.json();
 }
 
 /**
@@ -368,29 +368,20 @@ export async function updateBlogPost(slug: string, data: Partial<BlogPost>): Pro
  * @throws Error if the blog post deletion fails
  */
 export async function deleteBlogPost(slug: string): Promise<void> {
-  const res = await fetch(`/api/blog/${slug}`, {
-    method: 'DELETE',
-  });
-  if (!res.ok) throw new Error('Failed to delete blog post');
+  return apiFetch<void>(`/api/blog/${slug}`, { method: 'DELETE' });
 }
 
-// Auth
+// Auth API
 export async function login(email: string, password: string): Promise<{ user: User }> {
-  const response = await fetch('/api/auth/login', {
+  return apiFetch<{ user: User }>('/api/auth/login', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),
   });
-  if (!response.ok) throw new Error('Failed to login');
-  return response.json();
 }
 
 export async function signup(name: string, email: string, password: string): Promise<{ user: User }> {
-  const response = await fetch('/api/auth/signup', {
+  return apiFetch<{ user: User }>('/api/auth/signup', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ name, email, password }),
   });
-  if (!response.ok) throw new Error('Failed to signup');
-  return response.json();
 }

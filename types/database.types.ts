@@ -69,9 +69,11 @@ export interface BlogPost {
   title: string;
   content: string;
   category: 'IT' | 'Research';
+  excerpt: string;
   created_at: string;
+  published_at: string;
+  updated_at: string;
 }
-
 export interface JwtPayload {
     id: string;
     email: string;
