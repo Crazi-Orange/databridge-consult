@@ -1,7 +1,8 @@
-import { cookies } from 'next/headers'
-import { verifyJwt } from '../../lib/auth'
-import { redirect } from 'next/navigation'
-import Link from 'next/link'
+// app/dashboard/layout.tsx
+import { cookies } from 'next/headers';
+import { verifyJwt } from 'app/lib/auth';
+import { redirect } from 'next/navigation';
+import Link from 'next/link';
 
 const navItems = {
   user: [
@@ -20,37 +21,42 @@ const navItems = {
     { href: '/dashboard/superadmin/tools', label: 'Tools' },
     { href: '/dashboard/superadmin/users', label: 'Users' },
   ],
-}
+};
 
 export default async function DashboardLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
-  const cookieStore = await cookies()
-  const token = cookieStore.get('auth_token')
+  const cookieStore = await cookies();
+  const token = cookieStore.get('auth_token');
 
   if (!token) {
-    redirect('/auth/login')
+    console.error('No auth_token cookie found in dashboard layout', {
+      cookies: Object.fromEntries(cookieStore),
+      path: process.env.NEXT_PUBLIC_APP_URL,
+    });
+    redirect('/auth/login?error=no_token');
   }
 
-  const payload = verifyJwt(token.value)
+  const payload = verifyJwt(token.value);
   if (!payload) {
-    redirect('/auth/login')
+    console.error('Token verification failed:', { token: token.value });
+    redirect('/auth/login?error=invalid_token');
   }
 
-  // Get navigation items based on role
+  console.log('Dashboard access granted:', { userId: payload.id, role: payload.role });
+
   const roleNavItems = (() => {
     switch (payload.role) {
       case 'superadmin':
-        // Superadmin gets their specific items plus admin items
-        return [...navItems.superadmin, ...navItems.admin]
+        return [...navItems.superadmin, ...navItems.admin];
       case 'admin':
-        return navItems.admin
+        return navItems.admin;
       default:
-        return navItems.user
+        return navItems.user;
     }
-  })()
+  })();
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -76,9 +82,7 @@ export default async function DashboardLayout({
           </div>
         </div>
       </nav>
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        {children}
-      </main>
+      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">{children}</main>
     </div>
-  )
+  );
 }

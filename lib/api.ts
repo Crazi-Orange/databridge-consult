@@ -32,6 +32,7 @@ const handleNonJsonResponse = async (response: Response): Promise<string> => {
 };
 
 // Helper function for API calls
+// app/lib/api.ts (partial update)
 async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const baseUrl = getBaseUrl();
   const url = `${baseUrl}${endpoint}`;
@@ -53,6 +54,15 @@ async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise
       statusText: response.statusText,
       headers: Object.fromEntries(response.headers.entries()),
     };
+
+    // Handle redirect responses (e.g., 302)
+    if (response.redirected) {
+      console.log('Redirect detected, navigating to:', response.url);
+      if (typeof window !== 'undefined') {
+        window.location.href = response.url;
+      }
+      throw new Error(`Redirected to ${response.url}`);
+    }
 
     if (!response.ok) {
       const contentType = response.headers.get('content-type') || '';
@@ -81,6 +91,15 @@ async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise
     logDebug('Unexpected error in apiFetch', { url, error: (error as Error).message });
     throw error;
   }
+}
+
+// Update login function to handle user data from headers if needed
+export async function login(email: string, password: string): Promise<{ user: User }> {
+  const response = await apiFetch<{ user: User }>('/api/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ email, password }),
+  });
+  return response;
 }
 
 // Services API
@@ -372,12 +391,12 @@ export async function deleteBlogPost(slug: string): Promise<void> {
 }
 
 // Auth API
-export async function login(email: string, password: string): Promise<{ user: User }> {
+/*export async function login(email: string, password: string): Promise<{ user: User }> {
   return apiFetch<{ user: User }>('/api/auth/login', {
     method: 'POST',
     body: JSON.stringify({ email, password }),
   });
-}
+}*/
 
 export async function signup(name: string, email: string, password: string): Promise<{ user: User }> {
   return apiFetch<{ user: User }>('/api/auth/signup', {

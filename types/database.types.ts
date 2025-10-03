@@ -1,10 +1,22 @@
 export interface User {
   id: string;
-  name: string;
   email: string;
-  password_hash: string;
   role: 'user' | 'admin' | 'superadmin';
+  status: 'active' | 'suspended' | 'pending';
+  password_hash: string;
+  profile_data: {
+    name?: string;
+    [key: string]: unknown;
+  };
   created_at: string;
+  updated_at: string;
+  failed_login_attempts?: number;
+  last_failed_login?: string;
+}
+
+export interface LoginAttempt {
+  email: string;
+  timestamp: Date;
 }
 
 export interface Service {
