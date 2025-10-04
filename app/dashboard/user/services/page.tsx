@@ -6,7 +6,7 @@ import { Service } from "app/types/database.types";
 import ServiceCard from "../../../components/ServiceCard";
 import { useEffect } from 'react';
 import { supabaseClient } from "app/lib/supabaseClient";
-import { verifyJwt } from 'app/lib/auth';
+import { verifyJwt } from 'app/lib/jwt';
 
 export default function UserServices() {
   const [services, setServices] = useState<Service[]>([]);

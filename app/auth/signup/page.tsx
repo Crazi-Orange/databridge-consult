@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import { signup } from 'app/lib/api';
+import type { AuthUser } from 'app/types/database.types';
+import { dashboardPathForRole } from '../../lib/roles';
 import { useRouter } from 'next/navigation';
 
 export default function Signup() {
@@ -15,10 +17,12 @@ export default function Signup() {
     e.preventDefault();
     setError('');
     try {
-      await signup(name, email, password);
-      router.push('/dashboard/user');
+  const { user } = await signup(name, email, password);
+  const target = `/dashboard/${dashboardPathForRole((user as AuthUser).role)}`;
+  router.push(target);
     } catch (error) {
-      setError('Signup failed. Please try again.');
+      const msg = (error as Error).message || 'Signup failed. Please try again.';
+      setError(msg);
     }
   };
 

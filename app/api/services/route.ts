@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseClient } from 'app/lib/supabaseClient';
 import { Service } from 'app/types/database.types';
-import { verifyJwt } from 'app/lib/auth';
+import { verifyJwt } from 'app/lib/jwt';
 
 export async function GET() {
   try {

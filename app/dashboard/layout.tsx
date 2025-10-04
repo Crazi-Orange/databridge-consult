@@ -1,6 +1,6 @@
 // app/dashboard/layout.tsx
 import { cookies } from 'next/headers';
-import { verifyJwt } from 'app/lib/auth';
+import { verifyJwtFromToken } from 'app/lib/jwt';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 
@@ -39,16 +39,17 @@ export default async function DashboardLayout({
     redirect('/auth/login?error=no_token');
   }
 
-  const payload = verifyJwt(token.value);
-  if (!payload) {
-    console.error('Token verification failed:', { token: token.value });
+  // verify token directly on the server using the raw token helper
+  const payload = verifyJwtFromToken(token.value);
+  if ('error' in payload) {
+    console.error('Token verification failed:', { token: token.value, error: payload.error, code: payload.code });
     redirect('/auth/login?error=invalid_token');
   }
 
-  console.log('Dashboard access granted:', { userId: payload.id, role: payload.role });
+  console.log('Dashboard access granted:', { userId: payload.sub, role: payload.role });
 
   const roleNavItems = (() => {
-    switch (payload.role) {
+  switch (payload.role) {
       case 'superadmin':
         return [...navItems.superadmin, ...navItems.admin];
       case 'admin':

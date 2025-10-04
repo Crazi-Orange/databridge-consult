@@ -3,28 +3,22 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
+import { me, logout } from 'app/lib/api';
+import type { AuthUser } from 'app/types/database.types';
+import { dashboardPathForRole } from '../lib/roles';
 
 export default function Header() {
-  const [user, setUser] = useState<{ id: string; role: string } | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const router = useRouter();
   const pathname = usePathname();
 
   const fetchUser = async () => {
     try {
-      console.log('Header: Fetching user session from /api/auth/me');
-      const response = await fetch('/api/auth/me', {
-        credentials: 'include',
-      });
-      if (response.ok) {
-        const data = await response.json();
-        console.log('Header: User session fetched:', data.user);
-        setUser(data.user);
-      } else {
-        console.log('Header: No valid session found');
-        setUser(null);
-      }
-    } catch (error) {
-      console.error('Header: Error fetching user session:', error);
+      const res = await me();
+      setUser(res.user);
+      console.log('Header: User session fetched:', res.user);
+    } catch (err) {
+      console.log('Header: No valid session found', err);
       setUser(null);
     }
   };
@@ -34,14 +28,13 @@ export default function Header() {
   }, [pathname]);
 
   const handleLogout = async () => {
-    console.log('Initiating logout');
     try {
-      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+      await logout();
       setUser(null);
       router.push('/');
       router.refresh();
-    } catch (error) {
-      console.error('Logout error:', error);
+    } catch (err) {
+      console.error('Logout error:', err);
     }
   };
 
@@ -60,7 +53,7 @@ export default function Header() {
           <Link href="/contact">Contact</Link>
           {user ? (
             <>
-              <Link href={`/dashboard/${user.role}`}>Dashboard</Link>
+              <Link href={`/dashboard/${dashboardPathForRole(user.role)}`}>Dashboard</Link>
               <button
                 onClick={handleLogout}
                 className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"

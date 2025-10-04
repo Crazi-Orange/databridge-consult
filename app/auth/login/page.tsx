@@ -27,11 +27,16 @@ export default function LoginPage() {
       console.log('Attempting login with:', { email });
       const { user } = await login(email, password);
       console.log('Login successful, user:', { id: user.id, role: user.role });
-      const targetUrl = `/dashboard/${user.role}`;
+     
+      // Use centralized role->dashboard mapping
+  const { dashboardPathForRole } = await import('../../lib/roles');
+      const targetUrl = `/dashboard/${dashboardPathForRole(user.role as string)}`;
       console.log('Redirecting to:', targetUrl);
       router.push(targetUrl);
-    } catch (err: any) {
-      const errorMessage = err.message || 'Login failed. Please check your credentials.';
+    } catch (err: unknown) {
+      const errorMessage = err && typeof err === 'object' && 'message' in err
+        ? (err as { message?: string }).message || 'Login failed. Please check your credentials.'
+        : 'Login failed. Please check your credentials.';
       setError(errorMessage);
       console.error('Login error:', err);
     }

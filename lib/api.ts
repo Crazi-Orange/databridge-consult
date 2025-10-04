@@ -1,4 +1,15 @@
-import { User, Service, Product, Order, ResearchRequest, Message, BlogPost } from '../types/database.types';
+import {
+  User,
+  Service,
+  Product,
+  Order,
+  ResearchRequest,
+  Message,
+  BlogPost,
+  ApiResponse,
+  AuthResponse,
+  AuthUser,
+} from '../types/database.types';
 
 // Debug flag from environment variable
 const isDebug = process.env.NEXT_PUBLIC_DEBUG === 'true';
@@ -94,12 +105,17 @@ async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise
 }
 
 // Update login function to handle user data from headers if needed
-export async function login(email: string, password: string): Promise<{ user: User }> {
-  const response = await apiFetch<{ user: User }>('/api/auth/login', {
+export async function login(email: string, password: string): Promise<{ user: AuthUser }> {
+  const res = await apiFetch<ApiResponse<AuthResponse>>('/api/auth/login', {
     method: 'POST',
     body: JSON.stringify({ email, password }),
   });
-  return response;
+
+  if (!res.success) {
+    throw new Error(res.error?.message || 'Login failed');
+  }
+
+  return { user: res.data!.user };
 }
 
 // Services API
@@ -398,9 +414,51 @@ export async function deleteBlogPost(slug: string): Promise<void> {
   });
 }*/
 
-export async function signup(name: string, email: string, password: string): Promise<{ user: User }> {
-  return apiFetch<{ user: User }>('/api/auth/signup', {
+export async function signup(name: string, email: string, password: string): Promise<{ user: AuthUser }> {
+  const res = await apiFetch<ApiResponse<AuthResponse>>('/api/auth/signup', {
     method: 'POST',
     body: JSON.stringify({ name, email, password }),
   });
+
+  if (!res.success) {
+    throw new Error(res.error?.message || 'Signup failed');
+  }
+
+  return { user: res.data!.user };
+}
+
+export async function logout(): Promise<{ message: string }> {
+  const res = await apiFetch<ApiResponse<{ message: string }>>('/api/auth/logout', {
+    method: 'POST',
+  });
+
+  if (!res.success) {
+    throw new Error(res.error?.message || 'Logout failed');
+  }
+
+  return { message: res.data!.message };
+}
+
+export async function me(): Promise<{ user: AuthUser }> {
+  const res = await apiFetch<ApiResponse<AuthResponse>>('/api/auth/me', {
+    method: 'GET',
+  });
+
+  if (!res.success) {
+    throw new Error(res.error?.message || 'Failed to fetch user');
+  }
+
+  return { user: res.data!.user };
+}
+
+export async function refresh(): Promise<{ user: AuthUser }> {
+  const res = await apiFetch<ApiResponse<AuthResponse>>('/api/auth/refresh', {
+    method: 'POST',
+  });
+
+  if (!res.success) {
+    throw new Error(res.error?.message || 'Token refresh failed');
+  }
+
+  return { user: res.data!.user };
 }

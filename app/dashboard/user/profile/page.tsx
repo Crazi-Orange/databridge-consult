@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { fetchUser, updateUser } from 'app/lib/api';
 import { User } from 'app/types/database.types';
-import { verifyJwt } from 'app/lib/auth';
+import { verifyJwt } from 'app/lib/jwt';
 
 export default function UserProfile() {
   const [user, setUser] = useState<User | null>(null);

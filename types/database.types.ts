@@ -1,8 +1,54 @@
+export enum Role {
+  User = 'user',
+  Admin = 'admin',
+  Superadmin = 'superadmin',
+}
+
+export enum UserStatus {
+  Active = 'active',
+  Suspended = 'suspended',
+  Pending = 'pending',
+}
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  role: Role;
+  status: UserStatus;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface ApiResponse<T = unknown> {
+  success: boolean;
+  data?: T;
+  error?: {
+    code: string;
+    message: string;
+  };
+}
+
+export interface AuthResponse {
+  user: AuthUser;
+}
+
+export interface ApiRequest {
+  headers: {
+    cookie?: string;
+  };
+  ip?: string;
+}
+
+export interface ApiResponseLike {
+  setHeader: (name: string, value: string | string[]) => void;
+  headers: Headers;
+}
+
 export interface User {
   id: string;
   email: string;
-  role: 'user' | 'admin' | 'superadmin';
-  status: 'active' | 'suspended' | 'pending';
+  role: Role;
+  status: UserStatus;
   password_hash: string;
   profile_data: {
     name?: string;
@@ -15,8 +61,18 @@ export interface User {
 }
 
 export interface LoginAttempt {
+  id: string;
   email: string;
-  timestamp: Date;
+  timestamp: string;
+  created_at: string;
+}
+
+export interface Session {
+  id: string;
+  user_id: string;
+  refresh_token: string;
+  expires_at: string;
+  created_at: string;
 }
 
 export interface Service {
@@ -86,10 +142,22 @@ export interface BlogPost {
   published_at: string;
   updated_at: string;
 }
+
 export interface JwtPayload {
-    id: string;
-    email: string;
-    role: string;
-    created_at: number;
-    expire_at: number;
-} 
+  sub: string;
+  email: string;
+  role: Role;
+  iss: string;
+  exp: number;
+  iat?: number;
+}
+
+export interface RefreshTokenPayload {
+  sub: string;
+  email: string;
+  role: string;
+  refresh_id: string;
+  iss: string;
+  exp: number;
+  iat?: number;
+}
